@@ -1,7 +1,10 @@
 package com.github.horitaku1124;
 
+import com.github.horitaku1124.modifier.AccessModifier;
+import com.github.horitaku1124.nodes.ClassInsideNode;
 import com.github.horitaku1124.nodes.ClassNode;
 import com.github.horitaku1124.nodes.NodeBase;
+import com.github.horitaku1124.nodes.PropertyNode;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -131,22 +134,65 @@ public class Compile {
 
   }
 
+  enum Type {
+    OUTER_CLASS,
+    INNER_CLASS
+  }
+
   private NodeBase toAst(List<String> tokens) {
     ClassNode classNode = null;
+    ClassInsideNode classInside = null;
+
+    Type pos = Type.OUTER_CLASS;
 
     for (int i = 0;i < tokens.size();i++) {
       String token = tokens.get(i);
-      switch (token) {
-        case "class":
+      if (pos == Type.OUTER_CLASS) {
+        if ("class".equals(token)) {
           if (classNode == null) {
             classNode = new ClassNode();
             classNode.setName(tokens.get(i + 2));
           }
           i += 2;
-          break;
-        default:
-          break;
+
+          for (int skip = 1;skip <= 2;skip++) {
+            if (tokens.get(i + skip).equals("{")) {
+              classInside = new ClassInsideNode();
+              pos = Type.INNER_CLASS;
+              i += skip;
+              break;
+            }
+          }
+        }
+        continue;
       }
+      if (pos == Type.INNER_CLASS) {
+        int skip = 1;
+        AccessModifier modifier = AccessModifier.PUBLIC;
+        switch (token) {
+          case "private":
+          case "public":
+          case "protected":
+            modifier = AccessModifier.of(token);
+            skip += 2;
+            break;
+        }
+        String typeName = tokens.get(i + skip);
+        skip += 2;
+        String memberName = tokens.get(i + skip);
+        skip += 2;
+        String next = tokens.get(i + skip);
+        if (";".equals(next)) {
+          PropertyNode property = new PropertyNode();
+          property.setName(memberName);
+          property.setType(typeName);
+          property.setAccess(modifier);
+          classInside.addMember(property);
+          i += skip + 1;
+          continue;
+        }
+      }
+
     }
 
     return classNode;
