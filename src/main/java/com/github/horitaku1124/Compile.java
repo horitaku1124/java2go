@@ -1,10 +1,7 @@
 package com.github.horitaku1124;
 
 import com.github.horitaku1124.modifier.AccessModifier;
-import com.github.horitaku1124.nodes.ClassInsideNode;
-import com.github.horitaku1124.nodes.ClassNode;
-import com.github.horitaku1124.nodes.NodeBase;
-import com.github.horitaku1124.nodes.PropertyNode;
+import com.github.horitaku1124.nodes.*;
 import com.github.horitaku1124.tokenizer.TokenIterator;
 
 import java.io.IOException;
@@ -138,7 +135,9 @@ public class Compile {
 
   enum Type {
     OUTER_CLASS,
-    INNER_CLASS
+    INNER_CLASS,
+    METHOD_ARGUMENTS,
+    INNER_METHOD,
   }
 
   private NodeBase toAst(List<String> tokens) {
@@ -148,13 +147,11 @@ public class Compile {
     TokenIterator tokenIterator = new TokenIterator(tokens);
 
     while(true){
-      Optional<String> next = tokenIterator.nextNonSpace();
-      if (next.isEmpty()) {
+      if (tokenIterator.noNext()) {
         break;
       }
-      String token = next.get();
-
       if (pos == Type.OUTER_CLASS) {
+        String token = tokenIterator.nextNonSpace().get();
         if ("class".equals(token)) {
           if (classNode == null) {
             classNode = new ClassNode();
@@ -172,7 +169,8 @@ public class Compile {
         continue;
       }
       if (pos == Type.INNER_CLASS) {
-        AccessModifier modifier = AccessModifier.PUBLIC;
+        String token = tokenIterator.nextNonSpace().get();
+        var modifier = AccessModifier.PUBLIC;
         switch (token) {
           case "private":
           case "public":
@@ -181,8 +179,8 @@ public class Compile {
             break;
         }
         String typeName;
-        boolean isStatic = false;
-        String nextToken = tokenIterator.nextNonSpace().get();
+        var isStatic = false;
+        var nextToken = tokenIterator.nextNonSpace().get();
         if ("static".equals(nextToken)) {
           isStatic = true;
           typeName = tokenIterator.nextNonSpace().get();
@@ -190,16 +188,59 @@ public class Compile {
           typeName = nextToken;
         }
 
-        String memberName = tokenIterator.nextNonSpace().get();
+        var memberName = tokenIterator.nextNonSpace().get();
         nextToken = tokenIterator.nextNonSpace().get();
         if (";".equals(nextToken)) {
-          PropertyNode property = new PropertyNode();
+          var property = new PropertyNode();
           property.setName(memberName);
           property.setType(typeName);
           property.setAccess(modifier);
           property.setStatic(isStatic);
           classInside.addMember(property);
           continue;
+        }
+
+        if ("(".equals(nextToken)) {
+          pos = Type.METHOD_ARGUMENTS;
+          while (true) {
+            token = tokenIterator.nextNonSpace().get();
+            if (")".equals(nextToken)) {
+              break;
+            }
+
+          }
+          token = tokenIterator.nextNonSpace().get();
+          if (";".equals(token)) {
+            // TODO
+          } else if ("{".equals(token)) {
+            pos = Type.INNER_METHOD;
+          }
+          continue;
+        }
+      }
+      if (pos == Type.INNER_METHOD) {
+        while(true) {
+          List<String> lineTokens = new ArrayList<>();
+          while(true) {
+            var token = tokenIterator.nextNonSpace();
+            if (token.isEmpty()) {
+              break;
+            }
+            var str = token.get();
+            if (";".equals(str)) {
+              break;
+            }
+            lineTokens.add(str);
+          }
+          LocalVarNode localVar;
+          if (lineTokens.get(1).equals("=")) {
+            var localVarName = lineTokens.get(0);
+            localVar = LocalVarNode.of(localVarName);
+          } else if (lineTokens.get(2).equals("=")) {
+            var localVarType = lineTokens.get(0);
+            var localVarName = lineTokens.get(1);
+            localVar = new LocalVarNode(localVarType, localVarName);
+          }
         }
       }
 
