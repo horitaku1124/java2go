@@ -3,6 +3,7 @@ package com.github.horitaku1124.nodes;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Setter
@@ -10,6 +11,9 @@ import java.util.List;
 public class ClassInsideNode extends NodeBase {
   private List<NodeBase> methods;
   private List<PropertyNode> members;
+  public ClassInsideNode() {
+    members = new ArrayList<>();
+  }
 
   public void addMethod(NodeBase method) {
     methods.add(method);

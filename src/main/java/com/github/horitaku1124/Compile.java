@@ -5,12 +5,14 @@ import com.github.horitaku1124.nodes.ClassInsideNode;
 import com.github.horitaku1124.nodes.ClassNode;
 import com.github.horitaku1124.nodes.NodeBase;
 import com.github.horitaku1124.nodes.PropertyNode;
+import com.github.horitaku1124.tokenizer.TokenIterator;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class Compile {
   private final String spaces = " \t";
@@ -142,24 +144,27 @@ public class Compile {
   private NodeBase toAst(List<String> tokens) {
     ClassNode classNode = null;
     ClassInsideNode classInside = null;
+            Type pos = Type.OUTER_CLASS;
+    TokenIterator tokenIterator = new TokenIterator(tokens);
 
-    Type pos = Type.OUTER_CLASS;
+    while(true){
+      Optional<String> next = tokenIterator.nextNonSpace();
+      if (next.isEmpty()) {
+        break;
+      }
+      String token = next.get();
 
-    for (int i = 0;i < tokens.size();i++) {
-      String token = tokens.get(i);
       if (pos == Type.OUTER_CLASS) {
         if ("class".equals(token)) {
           if (classNode == null) {
             classNode = new ClassNode();
-            classNode.setName(tokens.get(i + 2));
+            classNode.setName(tokenIterator.nextNonSpace().get());
           }
-          i += 2;
 
           for (int skip = 1;skip <= 2;skip++) {
-            if (tokens.get(i + skip).equals("{")) {
+            if (tokenIterator.nextNonSpace().get().equals("{")) {
               classInside = new ClassInsideNode();
               pos = Type.INNER_CLASS;
-              i += skip;
               break;
             }
           }
@@ -167,28 +172,33 @@ public class Compile {
         continue;
       }
       if (pos == Type.INNER_CLASS) {
-        int skip = 1;
         AccessModifier modifier = AccessModifier.PUBLIC;
         switch (token) {
           case "private":
           case "public":
           case "protected":
             modifier = AccessModifier.of(token);
-            skip += 2;
             break;
         }
-        String typeName = tokens.get(i + skip);
-        skip += 2;
-        String memberName = tokens.get(i + skip);
-        skip += 2;
-        String next = tokens.get(i + skip);
-        if (";".equals(next)) {
+        String typeName;
+        boolean isStatic = false;
+        String nextToken = tokenIterator.nextNonSpace().get();
+        if ("static".equals(nextToken)) {
+          isStatic = true;
+          typeName = tokenIterator.nextNonSpace().get();
+        } else {
+          typeName = nextToken;
+        }
+
+        String memberName = tokenIterator.nextNonSpace().get();
+        nextToken = tokenIterator.nextNonSpace().get();
+        if (";".equals(nextToken)) {
           PropertyNode property = new PropertyNode();
           property.setName(memberName);
           property.setType(typeName);
           property.setAccess(modifier);
+          property.setStatic(isStatic);
           classInside.addMember(property);
-          i += skip + 1;
           continue;
         }
       }

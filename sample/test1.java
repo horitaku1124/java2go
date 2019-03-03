@@ -1,4 +1,5 @@
 public class Main {
+  private int A;
   public static void main(String[] args) {
     int a = 100;
     int b = 200;

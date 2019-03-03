@@ -10,4 +10,5 @@ public class FieldNode extends NodeBase {
   private AccessModifier access;
   private String name;
   private String type;
+  private boolean isStatic = false;
 }
