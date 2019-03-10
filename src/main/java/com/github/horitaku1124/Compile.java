@@ -26,6 +26,7 @@ public class Compile {
       System.out.println(s);
     }
     NodeBase root = jc.toAst(tokens);
+    System.out.println(root);
   }
 
   private List<String> lexicalAnalyzer(List<String> lines) {
@@ -143,7 +144,8 @@ public class Compile {
   private NodeBase toAst(List<String> tokens) {
     ClassNode classNode = null;
     ClassInsideNode classInside = null;
-            Type pos = Type.OUTER_CLASS;
+    Type pos = Type.OUTER_CLASS;
+    MethodNode methodNode = null;
     TokenIterator tokenIterator = new TokenIterator(tokens);
 
     while(true){
@@ -170,6 +172,13 @@ public class Compile {
       }
       if (pos == Type.INNER_CLASS) {
         String token = tokenIterator.nextNonSpace().get();
+
+        if (token.equals("}")) {
+          pos = Type.OUTER_CLASS;
+          classNode.setInside(classInside);
+          classInside = null;
+          continue;
+        }
         var modifier = AccessModifier.PUBLIC;
         switch (token) {
           case "private":
@@ -204,16 +213,20 @@ public class Compile {
           pos = Type.METHOD_ARGUMENTS;
           while (true) {
             token = tokenIterator.nextNonSpace().get();
-            if (")".equals(nextToken)) {
+            if (")".equals(token)) {
               break;
             }
-
           }
           token = tokenIterator.nextNonSpace().get();
           if (";".equals(token)) {
             // TODO
           } else if ("{".equals(token)) {
             pos = Type.INNER_METHOD;
+            methodNode = new MethodNode();
+            methodNode.setName(memberName);
+            methodNode.setType(typeName);
+            methodNode.setAccess(modifier);
+            methodNode.setStatic(isStatic);
           }
           continue;
         }
@@ -221,29 +234,46 @@ public class Compile {
       if (pos == Type.INNER_METHOD) {
         while(true) {
           List<String> lineTokens = new ArrayList<>();
+          var token = tokenIterator.nextNonSpace();
+          if (token.isEmpty() || token.get().equals("}")) {
+            pos = Type.INNER_CLASS;
+            break;
+          }
           while(true) {
-            var token = tokenIterator.nextNonSpace();
-            if (token.isEmpty()) {
-              break;
-            }
             var str = token.get();
             if (";".equals(str)) {
               break;
             }
             lineTokens.add(str);
+            token = tokenIterator.nextNonSpace();
           }
-          LocalVarNode localVar;
+          LocalVarNode localVar = null;
+          int next;
           if (lineTokens.get(1).equals("=")) {
             var localVarName = lineTokens.get(0);
             localVar = LocalVarNode.of(localVarName);
+            next = 2;
           } else if (lineTokens.get(2).equals("=")) {
             var localVarType = lineTokens.get(0);
             var localVarName = lineTokens.get(1);
             localVar = new LocalVarNode(localVarType, localVarName);
+            next = 3;
+          } else {
+            next = 0;
           }
-        }
-      }
 
+          var expressionNode = new ExpressionNode();
+          if (localVar != null) {
+            expressionNode.setAssignTo(localVar);
+          }
+          for (int i = next;i < lineTokens.size();i++) {
+            expressionNode.getNodes().add(lineTokens.get(i));
+          }
+          methodNode.getExpression().add(expressionNode);
+        }
+        classInside.addMethod(methodNode);
+        methodNode = null;
+      }
     }
 
     return classNode;

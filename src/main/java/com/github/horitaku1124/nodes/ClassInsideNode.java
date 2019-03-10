@@ -9,13 +9,14 @@ import java.util.List;
 @Setter
 @Getter
 public class ClassInsideNode extends NodeBase {
-  private List<NodeBase> methods;
+  private List<MethodNode> methods;
   private List<PropertyNode> members;
   public ClassInsideNode() {
+    methods = new ArrayList<>();
     members = new ArrayList<>();
   }
 
-  public void addMethod(NodeBase method) {
+  public void addMethod(MethodNode method) {
     methods.add(method);
   }
   public void addMember(PropertyNode member) {

@@ -19,9 +19,9 @@ public class TokenIterator {
       if (next.isBlank()) {
         continue;
       }
-      return true;
+      return false;
     }
-    return false;
+    return true;
   }
   public Optional<String> nextNonSpace() {
     while(index < tokens.size()) {
