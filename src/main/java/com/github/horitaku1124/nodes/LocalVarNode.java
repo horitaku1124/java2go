@@ -17,4 +17,9 @@ public class LocalVarNode {
     local.name = localVarName;
     return local;
   }
+
+  @Override
+  public String toString() {
+    return "(" + type + ")" + name;
+  }
 }

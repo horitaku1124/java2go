@@ -1,5 +1,6 @@
 package com.github.horitaku1124;
 
+import com.github.horitaku1124.golang.GoWriter;
 import com.github.horitaku1124.modifier.AccessModifier;
 import com.github.horitaku1124.nodes.*;
 import com.github.horitaku1124.tokenizer.TokenIterator;
@@ -9,7 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
+import java.util.Stack;
 
 public class Compile {
   private final String spaces = " \t";
@@ -22,11 +23,9 @@ public class Compile {
     List<String> lines = Files.readAllLines(Path.of(args[0]));
     Compile jc = new Compile();
     List<String> tokens = jc.lexicalAnalyzer(lines);
-    for (String s: tokens) {
-      System.out.println(s);
-    }
     NodeBase root = jc.toAst(tokens);
-    System.out.println(root);
+    var writer = new GoWriter();
+    writer.generate(root);
   }
 
   private List<String> lexicalAnalyzer(List<String> lines) {
@@ -266,9 +265,23 @@ public class Compile {
           if (localVar != null) {
             expressionNode.setAssignTo(localVar);
           }
+          Stack<String> express = new Stack<>();
           for (int i = next;i < lineTokens.size();i++) {
-            expressionNode.getNodes().add(lineTokens.get(i));
+            var token2 = lineTokens.get(i);
+
+            if ("(".equals(token2) || ")".equals(token2)) {
+              expressionNode.getNodes().addAll(express);
+              express.clear();
+              expressionNode.getNodes().add(token2);
+            } else if (express.isEmpty()) {
+              express.push(token2);
+            } else {
+              var str = express.pop();
+              str += token2;
+              express.push(str);
+            }
           }
+          expressionNode.getNodes().addAll(express);
           methodNode.getExpression().add(expressionNode);
         }
         classInside.addMethod(methodNode);
